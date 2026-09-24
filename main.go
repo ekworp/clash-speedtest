@@ -35,6 +35,7 @@ var (
 	uploadSize        = flag.Int("upload-size", 20*1024*1024, "upload size for testing proxies (full mode only)")
 	timeout           = flag.Duration("timeout", time.Second*5, "timeout for testing proxies")
 	concurrent        = flag.Int("concurrent", 4, "download concurrent size")
+	nodeConcurrent    = flag.Int("node-concurrent", 1, "number of nodes to test in parallel (1 = serial)")
 	outputPath        = flag.String("output", "", "output config file path")
 	gistToken         = flag.String("gist-token", "", "github gist token for updating output")
 	gistAddress       = flag.String("gist-address", "", "github gist address or id for updating output (filename uses output basename)")
@@ -86,6 +87,7 @@ func main() {
 		UploadSize:       *uploadSize,
 		Timeout:          *timeout,
 		Concurrent:       *concurrent,
+		NodeConcurrent:   *nodeConcurrent,
 		MaxPacketLoss:    *maxPacketLoss,
 		MaxLatency:       *maxLatency,
 		MinDownloadSpeed: *minDownloadSpeed * 1024 * 1024,

@@ -61,6 +61,8 @@ Usage of clash-speedtest:
         timeout for testing proxies (default 5s)
   -concurrent int
         download concurrent size (default 4)
+  -node-concurrent int
+        number of nodes to test in parallel (1 = serial) (default 1)
   -output string
         output config file path (default "")
   -max-latency duration

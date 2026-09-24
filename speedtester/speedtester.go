@@ -31,6 +31,7 @@ type Config struct {
 	UploadSize       int
 	Timeout          time.Duration
 	Concurrent       int
+	NodeConcurrent   int
 	MaxLatency       time.Duration
 	MaxPacketLoss    float64
 	MinDownloadSpeed float64
@@ -92,6 +93,9 @@ type SpeedTester struct {
 func New(config *Config) (*SpeedTester, error) {
 	if config.Concurrent <= 0 {
 		config.Concurrent = 1
+	}
+	if config.NodeConcurrent <= 0 {
+		config.NodeConcurrent = 1
 	}
 	if config.DownloadSize < 0 {
 		config.DownloadSize = 100 * 1024 * 1024
@@ -348,11 +352,57 @@ func (st *SpeedTester) TestProxies(proxies map[string]*CProxy, tester func(resul
 }
 
 func (st *SpeedTester) TestProxiesUntil(proxies map[string]*CProxy, tester func(result *Result) bool) {
-	for name, proxy := range proxies {
-		if !tester(st.testProxy(name, proxy)) {
-			return
+	st.testProxiesUntil(proxies, tester, st.testProxy)
+}
+
+func (st *SpeedTester) testProxiesUntil(proxies map[string]*CProxy, tester func(result *Result) bool, test func(string, *CProxy) *Result) {
+	if st.config.NodeConcurrent <= 1 {
+		for name, proxy := range proxies {
+			if !tester(test(name, proxy)) {
+				return
+			}
 		}
+		return
 	}
+
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		stopped bool
+	)
+	sem := make(chan struct{}, st.config.NodeConcurrent)
+
+	for name, proxy := range proxies {
+		mu.Lock()
+		if stopped {
+			mu.Unlock()
+			break
+		}
+		mu.Unlock()
+
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(name string, proxy *CProxy) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			mu.Lock()
+			if stopped {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
+
+			result := test(name, proxy)
+
+			mu.Lock()
+			defer mu.Unlock()
+			if !tester(result) {
+				stopped = true
+			}
+		}(name, proxy)
+	}
+	wg.Wait()
 }
 
 type Result struct {
